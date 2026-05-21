@@ -1,0 +1,9 @@
+name: astrbot_plugin_kami # 插件唯一识别名
+display_name: 卡密发放 # 插件展示名
+desc: 群内卡密发放插件，支持群白名单、领取冷却、WebUI 管理卡密池。 # 插件简短描述
+short_desc: 群内指令领取卡密，支持冷却与后台管理。
+version: v1.0.0 # 插件版本号
+author: YourName # 作者
+repo: https://github.com/yourname/astrbot_plugin_kami # 插件的仓库地址
+support_platforms:
+  - aiocqhttp

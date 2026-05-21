@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <title>卡密管理</title>
+    <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+    <div class="container">
+        <!-- 顶部标签切换 -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="kami-panel">卡密管理</button>
+            <button class="tab-btn" data-tab="records-panel">领取记录</button>
+            <button class="tab-btn" data-tab="settings-panel">配置设置</button>
+        </div>
+
+        <!-- 卡密管理面板 -->
+        <div id="kami-panel" class="panel active">
+            <div class="card">
+                <h3>添加卡密</h3>
+                <p class="hint">每行一个卡密，支持批量添加，重复的卡密会自动跳过。</p>
+                <textarea id="kami-input" rows="6" placeholder="在此粘贴卡密，每行一个..."></textarea>
+                <button id="btn-add-kami" class="btn btn-primary">添加卡密</button>
+            </div>
+
+            <div class="card">
+                <h3>
+                    卡密列表
+                    <span class="status-badge" id="kami-stats"></span>
+                </h3>
+                <div class="toolbar">
+                    <button id="btn-refresh-kami" class="btn btn-secondary">刷新列表</button>
+                    <button id="btn-clear-used" class="btn btn-danger">清空已领取记录</button>
+                </div>
+                <div id="kami-list" class="list-container">
+                    <p class="loading">加载中...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 领取记录面板 -->
+        <div id="records-panel" class="panel">
+            <div class="card">
+                <h3>
+                    领取记录
+                    <span class="status-badge" id="records-stats"></span>
+                </h3>
+                <div class="toolbar">
+                    <button id="btn-refresh-records" class="btn btn-secondary">刷新记录</button>
+                </div>
+                <div id="records-list" class="list-container">
+                    <p class="loading">加载中...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 配置设置面板 -->
+        <div id="settings-panel" class="panel">
+            <div class="card">
+                <h3>插件配置</h3>
+                <div class="form-group">
+                    <label for="cooldown-input">领取冷却时间（小时）</label>
+                    <input type="number" id="cooldown-input" min="0" value="24" />
+                    <p class="hint">同一用户两次领取之间需等待的时间。设为 0 表示无冷却。</p>
+                </div>
+                <div class="form-group">
+                    <label for="whitelist-input">群白名单（每行一个群号）</label>
+                    <textarea id="whitelist-input" rows="6" placeholder="每行一个群号..."></textarea>
+                    <p class="hint">只有在白名单内的群才能使用卡密功能。留空表示不限制。</p>
+                </div>
+                <button id="btn-save-config" class="btn btn-primary">保存配置</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+</body>
+</html>

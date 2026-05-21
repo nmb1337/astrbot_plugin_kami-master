@@ -1,0 +1,14 @@
+{
+  "cooldown_hours": {
+    "description": "领取冷却时间（小时）",
+    "type": "int",
+    "default": 24,
+    "hint": "同一用户领取卡密后需等待的冷却时间，单位：小时。设为 0 表示无冷却。"
+  },
+  "whitelist_groups": {
+    "description": "群白名单（群号列表）",
+    "type": "list",
+    "default": [],
+    "hint": "只有在白名单内的群才能使用卡密功能。留空表示不限制（不推荐）。"
+  }
+}
