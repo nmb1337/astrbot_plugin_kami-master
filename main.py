@@ -159,11 +159,21 @@ class KamiPlugin(Star):
         msg = event.message_str.strip()
         claim_cmd = await self._get_claim_command()
 
-        # 匹配 /指令 格式（如 /getkami、/领取）
-        if not msg or not (msg == "/" + claim_cmd or msg.startswith("/" + claim_cmd + " ")):
+        # 匹配 /指令 格式（如 /getkami、/领取），也兼容 /指令@bot 格式
+        expected_prefix = "/" + claim_cmd
+        matched = (
+            msg == expected_prefix
+            or msg.startswith(expected_prefix + " ")
+            or msg.startswith(expected_prefix + "@")  # /指令@bot 格式
+        )
+
+        if msg and msg.startswith("/"):
+            logger.info(f"[指令匹配] 收到指令: '{msg}', 当前领取指令: '{claim_cmd}', 匹配: {matched}")
+
+        if not matched:
             return  # 不是领取指令，交给其他 handler 处理
 
-        # 调用实际的领取逻辑
+        logger.info(f"[指令匹配] 匹配成功，开始处理领取: user={event.get_sender_name()}, cmd={claim_cmd}")
         async for result in self._do_get_kami(event):
             yield result
 
