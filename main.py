@@ -80,16 +80,6 @@ class KamiPlugin(Star):
             "更新插件配置",
         )
 
-        # 动态注册领取指令 — 使用 regex catch-all 捕获所有 / 开头的消息
-        context.register_commands(
-            star_name=PLUGIN_NAME,
-            command_name=r"^/(.+)",
-            desc="领取卡密（动态指令匹配）",
-            priority=10,
-            awaitable=type(self)._handle_any_command,
-            use_regex=True,
-        )
-
     # ==================== KV 数据读写 ====================
 
     async def _get_kami_pool(self) -> list:
@@ -163,6 +153,7 @@ class KamiPlugin(Star):
 
     # ==================== 指令 ====================
 
+    @filter.regex(r"^/.+")
     async def _handle_any_command(self, event: AstrMessageEvent, *args):
         """catch-all 指令处理器，匹配动态配置的领取指令（仅群聊）"""
         # 只处理群消息
