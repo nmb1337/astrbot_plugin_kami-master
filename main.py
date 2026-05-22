@@ -369,13 +369,22 @@ class KamiPlugin(Star):
     async def api_kami_add(self):
         """POST — 批量添加卡密 {kamis: ["xxx", "yyy"]}"""
         try:
-            body = await request.get_json()
-            new_kamis = body.get("kamis", [])
+            logger.info(f"[kami_add] 收到添加卡密请求")
+            body = await request.get_json(silent=True)
+            if body is None:
+                logger.warning(f"[kami_add] 请求体不是有效的 JSON")
+                return jsonify({"status": "error", "message": "请求体格式错误，需要 JSON"})
+            logger.info(f"[kami_add] 请求体解析成功，字段: {list(body.keys()) if body else 'None'}")
+            new_kamis = body.get("kamis", []) if body else []
             if not new_kamis:
+                logger.info(f"[kami_add] 卡密列表为空")
                 return jsonify({"status": "error", "message": "卡密列表不能为空"})
+
+            logger.info(f"[kami_add] 待添加卡密数量: {len(new_kamis)}")
 
             # 去重
             pool = await self._get_kami_pool()
+            logger.info(f"[kami_add] 当前卡密池大小: {len(pool)}")
             existing = set(pool)
             added = []
             for k in new_kamis:
@@ -385,17 +394,20 @@ class KamiPlugin(Star):
                     existing.add(k)
                     added.append(k)
 
+            logger.info(f"[kami_add] 去重后新增: {len(added)}")
             await self._save_kami_pool(pool)
-            logger.info(f"添加了 {len(added)} 张卡密")
+            logger.info(f"[kami_add] 保存成功，卡密池大小: {len(pool)}")
             return jsonify({"msg": f"成功添加 {len(added)} 张卡密", "added": len(added)})
         except Exception as e:
-            logger.error(f"添加卡密失败: {e}")
+            logger.error(f"[kami_add] 添加卡密失败: {e}", exc_info=True)
             return jsonify({"status": "error", "message": str(e)})
 
     async def api_kami_delete(self):
         """POST — 删除指定卡密 {kami: "xxx"}"""
         try:
-            body = await request.get_json()
+            body = await request.get_json(silent=True)
+            if body is None:
+                return jsonify({"status": "error", "message": "请求体格式错误，需要 JSON"})
             kami = body.get("kami", "").strip()
             if not kami:
                 return jsonify({"status": "error", "message": "请指定要删除的卡密"})
@@ -462,7 +474,9 @@ class KamiPlugin(Star):
     async def api_reset_user(self):
         """POST — 重置用户领取状态 {user_id: "xxx"}"""
         try:
-            body = await request.get_json()
+            body = await request.get_json(silent=True)
+            if body is None:
+                return jsonify({"status": "error", "message": "请求体格式错误，需要 JSON"})
             user_id = body.get("user_id", "").strip()
             if not user_id:
                 return jsonify({"status": "error", "message": "请指定用户 ID"})
@@ -487,7 +501,9 @@ class KamiPlugin(Star):
     async def api_whitelist_update(self):
         """POST — 更新群白名单 {groups: ["123", "456"]}"""
         try:
-            body = await request.get_json()
+            body = await request.get_json(silent=True)
+            if body is None:
+                return jsonify({"status": "error", "message": "请求体格式错误，需要 JSON"})
             groups = body.get("groups", [])
             groups = [str(g).strip() for g in groups if str(g).strip()]
             await self._save_whitelist(groups)
@@ -511,7 +527,9 @@ class KamiPlugin(Star):
     async def api_update_config(self):
         """POST — 更新插件配置 {claim_command, cooldown_hours, whitelist_groups}"""
         try:
-            body = await request.get_json()
+            body = await request.get_json(silent=True)
+            if body is None:
+                return jsonify({"status": "error", "message": "请求体格式错误，需要 JSON"})
             if "claim_command" in body:
                 cmd = str(body["claim_command"]).strip()
                 if cmd:

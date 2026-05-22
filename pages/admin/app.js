@@ -142,17 +142,49 @@ function doAddKamis(rawText) {
     btn.disabled = true;
     btn.textContent = "添加中...";
 
-    bridge.apiPost("kami_add", { kamis: kamis }).then(function (result) {
-        showToast(result.msg || "添加成功");
-        document.getElementById("kami-input").value = "";
-        loadKamiList();
+    // 检测 bridge 是否可用
+    if (!window.AstrBotPluginPage || typeof window.AstrBotPluginPage.apiPost !== "function") {
+        showToast("Bridge 未就绪，请刷新页面后重试", true);
         btn.disabled = false;
         btn.textContent = "添加卡密";
-    }).catch(function (e) {
-        showToast(e.message || "请求失败", true);
+        return;
+    }
+
+    console.log("[kami] 准备添加 " + kamis.length + " 张卡密:", kamis);
+
+    // 超时保护：15 秒后如果还没响应，恢复按钮
+    var timeoutId = setTimeout(function () {
+        if (btn.disabled) {
+            console.error("[kami] 请求超时");
+            btn.disabled = false;
+            btn.textContent = "添加卡密";
+            showToast("请求超时，请刷新页面后重试", true);
+        }
+    }, 15000);
+
+    try {
+        bridge.apiPost("kami_add", { kamis: kamis }).then(function (result) {
+            clearTimeout(timeoutId);
+            console.log("[kami] 添加响应:", result);
+            showToast(result.msg || "添加成功");
+            document.getElementById("kami-input").value = "";
+            loadKamiList();
+            btn.disabled = false;
+            btn.textContent = "添加卡密";
+        }).catch(function (e) {
+            clearTimeout(timeoutId);
+            console.error("[kami] 添加失败:", e);
+            showToast(e.message || "请求失败", true);
+            btn.disabled = false;
+            btn.textContent = "添加卡密";
+        });
+    } catch (e) {
+        clearTimeout(timeoutId);
+        console.error("[kami] 调用 apiPost 时发生同步异常:", e);
+        showToast("请求异常: " + (e.message || String(e)), true);
         btn.disabled = false;
         btn.textContent = "添加卡密";
-    });
+    }
 }
 
 function importFromFile() {
@@ -283,19 +315,48 @@ function saveConfig() {
     btn.disabled = true;
     btn.textContent = "保存中...";
 
-    bridge.apiPost("config_update", {
-        claim_command: claimCmd,
-        cooldown_hours: cooldownHours,
-        whitelist_groups: whitelistGroups,
-    }).then(function (result) {
-        showToast(result.msg || "配置保存成功！");
+    if (!window.AstrBotPluginPage || typeof window.AstrBotPluginPage.apiPost !== "function") {
+        showToast("Bridge 未就绪，请刷新页面后重试", true);
         btn.disabled = false;
         btn.textContent = "保存配置";
-    }).catch(function (e) {
-        showToast(e.message || "保存失败", true);
+        return;
+    }
+
+    console.log("[kami] 保存配置:", { claim_command: claimCmd, cooldown_hours: cooldownHours, whitelist_groups: whitelistGroups });
+
+    var timeoutId = setTimeout(function () {
+        if (btn.disabled) {
+            btn.disabled = false;
+            btn.textContent = "保存配置";
+            showToast("请求超时，请刷新页面后重试", true);
+        }
+    }, 15000);
+
+    try {
+        bridge.apiPost("config_update", {
+            claim_command: claimCmd,
+            cooldown_hours: cooldownHours,
+            whitelist_groups: whitelistGroups,
+        }).then(function (result) {
+            clearTimeout(timeoutId);
+            console.log("[kami] 配置保存响应:", result);
+            showToast(result.msg || "配置保存成功！");
+            btn.disabled = false;
+            btn.textContent = "保存配置";
+        }).catch(function (e) {
+            clearTimeout(timeoutId);
+            console.error("[kami] 配置保存失败:", e);
+            showToast(e.message || "保存失败", true);
+            btn.disabled = false;
+            btn.textContent = "保存配置";
+        });
+    } catch (e) {
+        clearTimeout(timeoutId);
+        console.error("[kami] 调用 apiPost 时发生同步异常:", e);
+        showToast("请求异常: " + (e.message || String(e)), true);
         btn.disabled = false;
         btn.textContent = "保存配置";
-    });
+    }
 }
 
 // ==================== 初始化 ====================
@@ -324,11 +385,20 @@ function saveConfig() {
     if (btnSave) btnSave.addEventListener("click", saveConfig);
 
     // 等待 bridge 就绪后加载初始数据
-    bridge.ready().then(function () {
-        loadKamiList();
-    }).catch(function (e) {
-        // bridge 可能还没就绪，仍然尝试加载
-        loadKamiList();
-    });
+    if (window.AstrBotPluginPage && typeof window.AstrBotPluginPage.ready === "function") {
+        bridge.ready().then(function () {
+            console.log("[kami] Bridge 就绪，加载卡密列表");
+            loadKamiList();
+        }).catch(function (e) {
+            console.warn("[kami] Bridge ready 失败:", e, "，仍然尝试加载");
+            loadKamiList();
+        });
+    } else {
+        console.warn("[kami] Bridge 未就绪，延迟加载");
+        // 稍后重试
+        setTimeout(function () {
+            loadKamiList();
+        }, 1000);
+    }
 })();
 
