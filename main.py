@@ -153,9 +153,13 @@ class KamiPlugin(Star):
 
     # ==================== 指令 ====================
 
-    @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
+    @filter.event_message_type(filter.EventMessageType.ALL)
     async def _on_group_message(self, event: AstrMessageEvent):
-        """监听群消息，匹配可配置的领取指令"""
+        """监听所有消息，匹配可配置的领取指令（仅处理群消息）"""
+        # 只处理群消息
+        if event.message_obj.group_id is None or str(event.message_obj.group_id) == "":
+            return
+
         msg = event.message_str.strip()
         claim_cmd = await self._get_claim_command()
 
@@ -164,16 +168,16 @@ class KamiPlugin(Star):
         matched = (
             msg == expected_prefix
             or msg.startswith(expected_prefix + " ")
-            or msg.startswith(expected_prefix + "@")  # /指令@bot 格式
+            or msg.startswith(expected_prefix + "@")
         )
 
         if msg and msg.startswith("/"):
-            logger.info(f"[指令匹配] 收到指令: '{msg}', 当前领取指令: '{claim_cmd}', 匹配: {matched}")
+            logger.info(f"[指令匹配] 收到: '{msg}', 当前领取指令: '{claim_cmd}', 匹配: {matched}")
 
         if not matched:
-            return  # 不是领取指令，交给其他 handler 处理
+            return
 
-        logger.info(f"[指令匹配] 匹配成功，开始处理领取: user={event.get_sender_name()}, cmd={claim_cmd}")
+        logger.info(f"[指令匹配] 匹配成功，user={event.get_sender_name()}, cmd={claim_cmd}")
         async for result in self._do_get_kami(event):
             yield result
 
