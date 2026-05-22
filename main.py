@@ -133,12 +133,35 @@ class KamiPlugin(Star):
         """保存冷却时间"""
         await self.put_kv_data("cooldown_hours", hours)
 
+    async def _get_claim_command(self) -> str:
+        """获取领取指令（优先从 KV 读取，否则从 config 读取）"""
+        data = await self.get_kv_data("claim_command", None)
+        if data is not None:
+            return data
+        return self.config.get("claim_command", "getkami")
+
+    async def _save_claim_command(self, cmd: str):
+        """保存领取指令"""
+        await self.put_kv_data("claim_command", cmd)
+
     # ==================== 指令 ====================
 
-    @filter.command("getkami", alias={"领取卡密", "领卡密", "取卡密"})
     @filter.event_message_type(filter.EventMessageType.GROUP_MESSAGE)
-    async def cmd_get_kami(self, event: AstrMessageEvent):
-        """领取卡密指令 — 在群内发送 /getkami 或 /领取卡密，机器人私发卡密"""
+    async def _on_group_message(self, event: AstrMessageEvent):
+        """监听群消息，匹配可配置的领取指令"""
+        msg = event.message_str.strip()
+        claim_cmd = await self._get_claim_command()
+
+        # 匹配 /指令 格式（如 /getkami、/领取）
+        if not msg or not (msg == "/" + claim_cmd or msg.startswith("/" + claim_cmd + " ")):
+            return  # 不是领取指令，交给其他 handler 处理
+
+        # 调用实际的领取逻辑
+        async for result in self._do_get_kami(event):
+            yield result
+
+    async def _do_get_kami(self, event: AstrMessageEvent):
+        """领取卡密的核心逻辑"""
         group_id = event.message_obj.group_id
         sender_id = event.get_sender_id()
         sender_name = event.get_sender_name()
@@ -471,18 +494,24 @@ class KamiPlugin(Star):
         """GET — 获取插件配置"""
         cooldown = await self._get_cooldown_hours()
         whitelist = await self._get_whitelist()
+        claim_cmd = await self._get_claim_command()
         return jsonify({
             "code": 0,
             "data": {
+                "claim_command": claim_cmd,
                 "cooldown_hours": cooldown,
                 "whitelist_groups": whitelist,
             }
         })
 
     async def api_update_config(self):
-        """POST — 更新插件配置 {cooldown_hours: 24}"""
+        """POST — 更新插件配置 {claim_command, cooldown_hours, whitelist_groups}"""
         try:
             body = await request.get_json()
+            if "claim_command" in body:
+                cmd = str(body["claim_command"]).strip()
+                if cmd:
+                    await self._save_claim_command(cmd)
             if "cooldown_hours" in body:
                 hours = int(body["cooldown_hours"])
                 await self._save_cooldown_hours(hours)

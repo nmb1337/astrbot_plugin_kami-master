@@ -279,6 +279,7 @@ function loadConfig() {
     bridge.apiGet("config").then(function (data) {
         if (data.code === 0) {
             var cfg = data.data || {};
+            document.getElementById("claim-cmd-input").value = cfg.claim_command || "getkami";
             document.getElementById("cooldown-input").value = cfg.cooldown_hours || 24;
             var whitelist = cfg.whitelist_groups || [];
             document.getElementById("whitelist-input").value = whitelist.join("\n");
@@ -289,6 +290,7 @@ function loadConfig() {
 }
 
 function saveConfig() {
+    var claimCmd = document.getElementById("claim-cmd-input").value.trim() || "getkami";
     var cooldownHours = parseInt(document.getElementById("cooldown-input").value) || 0;
     var whitelistRaw = document.getElementById("whitelist-input").value.trim();
     var whitelistGroups = whitelistRaw
@@ -300,6 +302,7 @@ function saveConfig() {
     btn.textContent = "保存中...";
 
     bridge.apiPost("config_update", {
+        claim_command: claimCmd,
         cooldown_hours: cooldownHours,
         whitelist_groups: whitelistGroups,
     }).then(function (result) {

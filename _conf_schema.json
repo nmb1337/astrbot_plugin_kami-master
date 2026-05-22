@@ -1,4 +1,10 @@
 {
+  "claim_command": {
+    "description": "领取卡密指令（不含 /）",
+    "type": "string",
+    "default": "getkami",
+    "hint": "用户在群内发送 /此指令 来领取卡密。例如设为 getkami，则发送 /getkami；设为 领取，则发送 /领取。"
+  },
   "cooldown_hours": {
     "description": "领取冷却时间（小时）",
     "type": "int",
