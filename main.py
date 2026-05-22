@@ -80,6 +80,16 @@ class KamiPlugin(Star):
             "更新插件配置",
         )
 
+        # 动态注册领取指令 — 使用 regex catch-all 捕获所有 / 开头的消息
+        context.register_commands(
+            star_name=PLUGIN_NAME,
+            command_name=r"^/(.+)",
+            desc="领取卡密（动态指令匹配）",
+            priority=10,
+            awaitable=type(self)._handle_any_command,
+            use_regex=True,
+        )
+
     # ==================== KV 数据读写 ====================
 
     async def _get_kami_pool(self) -> list:
@@ -153,17 +163,15 @@ class KamiPlugin(Star):
 
     # ==================== 指令 ====================
 
-    @filter.event_message_type(filter.EventMessageType.ALL)
-    async def _on_group_message(self, event: AstrMessageEvent):
-        """监听所有消息，匹配可配置的领取指令（仅处理群消息）"""
+    async def _handle_any_command(self, event: AstrMessageEvent, *args):
+        """catch-all 指令处理器，匹配动态配置的领取指令（仅群聊）"""
         # 只处理群消息
-        if event.message_obj.group_id is None or str(event.message_obj.group_id) == "":
+        if not event.message_obj.group_id:
             return
 
         msg = event.message_str.strip()
         claim_cmd = await self._get_claim_command()
 
-        # 匹配 /指令 格式（如 /getkami、/领取），也兼容 /指令@bot 格式
         expected_prefix = "/" + claim_cmd
         matched = (
             msg == expected_prefix
@@ -171,8 +179,9 @@ class KamiPlugin(Star):
             or msg.startswith(expected_prefix + "@")
         )
 
-        if msg and msg.startswith("/"):
-            logger.info(f"[指令匹配] 收到: '{msg}', 当前领取指令: '{claim_cmd}', 匹配: {matched}")
+        logger.info(
+            f"[指令匹配] 收到: '{msg}', 当前领取指令: '{claim_cmd}', 匹配: {matched}"
+        )
 
         if not matched:
             return
