@@ -82,6 +82,17 @@
         </div>
     </div>
 
+    <!-- 自定义确认弹窗（替代被 iframe 沙箱拦截的 confirm()） -->
+    <div id="confirm-modal" class="modal-overlay" style="display:none">
+        <div class="modal-box">
+            <p class="modal-message" id="confirm-message"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" id="confirm-cancel">取消</button>
+                <button class="btn btn-danger" id="confirm-ok">确定</button>
+            </div>
+        </div>
+    </div>
+
     <script src="./app.js"></script>
 </body>
 </html>

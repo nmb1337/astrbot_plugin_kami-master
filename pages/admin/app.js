@@ -3,6 +3,39 @@ function getBridge() {
     return window.AstrBotPluginPage;
 }
 
+// ==================== 自定义确认弹窗（替代被 iframe 沙箱拦截的 confirm） ====================
+
+function showConfirm(message) {
+    return new Promise(function (resolve) {
+        var overlay = document.getElementById("confirm-modal");
+        var msgEl = document.getElementById("confirm-message");
+        var okBtn = document.getElementById("confirm-ok");
+        var cancelBtn = document.getElementById("confirm-cancel");
+
+        msgEl.textContent = message;
+        overlay.style.display = "flex";
+
+        function cleanup() {
+            overlay.style.display = "none";
+            okBtn.removeEventListener("click", onOk);
+            cancelBtn.removeEventListener("click", onCancel);
+        }
+
+        function onOk() {
+            cleanup();
+            resolve(true);
+        }
+
+        function onCancel() {
+            cleanup();
+            resolve(false);
+        }
+
+        okBtn.addEventListener("click", onOk);
+        cancelBtn.addEventListener("click", onCancel);
+    });
+}
+
 // ==================== 工具函数 ====================
 
 function formatTime(timestamp) {
@@ -221,38 +254,42 @@ function handleFileSelected(event) {
 }
 
 function deleteKami(kami) {
-    if (!confirm("确定要删除卡密「" + kami + "」吗？\n相关的领取记录也会一并清除。")) return;
+    showConfirm("确定要删除卡密「" + kami + "」吗？\n相关的领取记录也会一并清除。").then(function (ok) {
+        if (!ok) return;
 
-    if (!getBridge() || typeof getBridge().apiPost !== "function") {
-        showToast("Bridge 未就绪，请刷新页面后重试", true);
-        return;
-    }
+        if (!getBridge() || typeof getBridge().apiPost !== "function") {
+            showToast("Bridge 未就绪，请刷新页面后重试", true);
+            return;
+        }
 
-    console.log("[kami] 删除卡密:", kami);
+        console.log("[kami] 删除卡密:", kami);
 
-    try {
-        getBridge().apiPost("kami_delete", { kami: kami }).then(function (result) {
-            console.log("[kami] 删除响应:", result);
-            showToast(result.msg || "删除成功");
-            loadKamiList();
-        }).catch(function (e) {
-            console.error("[kami] 删除失败:", e);
-            showToast(e.message || "删除失败", true);
-        });
-    } catch (e) {
-        console.error("[kami] 调用 apiPost 时发生同步异常:", e);
-        showToast("请求异常: " + (e.message || String(e)), true);
-    }
+        try {
+            getBridge().apiPost("kami_delete", { kami: kami }).then(function (result) {
+                console.log("[kami] 删除响应:", result);
+                showToast(result.msg || "删除成功");
+                loadKamiList();
+            }).catch(function (e) {
+                console.error("[kami] 删除失败:", e);
+                showToast(e.message || "删除失败", true);
+            });
+        } catch (e) {
+            console.error("[kami] 调用 apiPost 时发生同步异常:", e);
+            showToast("请求异常: " + (e.message || String(e)), true);
+        }
+    });
 }
 
 function clearUsedKamis() {
-    if (!confirm("确定要一键重置吗？\n\n此操作将会：\n1. 从卡密池中删除所有已领取的旧卡密\n2. 清空所有领取记录\n\n未领取的卡密将保留。")) return;
+    showConfirm("确定要一键重置吗？\n\n此操作将会：\n1. 从卡密池中删除所有已领取的旧卡密\n2. 清空所有领取记录\n\n未领取的卡密将保留。").then(function (ok) {
+        if (!ok) return;
 
-    getBridge().apiPost("kami_clear_used", {}).then(function (result) {
-        showToast(result.msg || "操作成功");
-        loadKamiList();
-    }).catch(function (e) {
-        showToast(e.message || "操作失败", true);
+        getBridge().apiPost("kami_clear_used", {}).then(function (result) {
+            showToast(result.msg || "操作成功");
+            loadKamiList();
+        }).catch(function (e) {
+            showToast(e.message || "操作失败", true);
+        });
     });
 }
 
@@ -298,28 +335,30 @@ function loadRecords() {
 }
 
 function resetUser(userId) {
-    if (!confirm("确定要重置用户 " + userId + " 的领取状态吗？\n重置后该用户可以重新领取卡密。")) return;
+    showConfirm("确定要重置用户 " + userId + " 的领取状态吗？\n重置后该用户可以重新领取卡密。").then(function (ok) {
+        if (!ok) return;
 
-    if (!getBridge() || typeof getBridge().apiPost !== "function") {
-        showToast("Bridge 未就绪，请刷新页面后重试", true);
-        return;
-    }
+        if (!getBridge() || typeof getBridge().apiPost !== "function") {
+            showToast("Bridge 未就绪，请刷新页面后重试", true);
+            return;
+        }
 
-    console.log("[kami] 重置用户:", userId);
+        console.log("[kami] 重置用户:", userId);
 
-    try {
-        getBridge().apiPost("reset_user", { user_id: userId }).then(function (result) {
-            console.log("[kami] 重置响应:", result);
-            showToast(result.msg || "重置成功");
-            loadRecords();
-        }).catch(function (e) {
-            console.error("[kami] 重置失败:", e);
-            showToast(e.message || "重置失败", true);
-        });
-    } catch (e) {
-        console.error("[kami] 调用 apiPost 时发生同步异常:", e);
-        showToast("请求异常: " + (e.message || String(e)), true);
-    }
+        try {
+            getBridge().apiPost("reset_user", { user_id: userId }).then(function (result) {
+                console.log("[kami] 重置响应:", result);
+                showToast(result.msg || "重置成功");
+                loadRecords();
+            }).catch(function (e) {
+                console.error("[kami] 重置失败:", e);
+                showToast(e.message || "重置失败", true);
+            });
+        } catch (e) {
+            console.error("[kami] 调用 apiPost 时发生同步异常:", e);
+            showToast("请求异常: " + (e.message || String(e)), true);
+        }
+    });
 }
 
 // ==================== 配置设置 ====================
