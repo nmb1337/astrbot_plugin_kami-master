@@ -1,4 +1,7 @@
-const bridge = window.AstrBotPluginPage;
+// 动态获取 bridge，避免脚本加载时 bridge SDK 尚未注入的问题
+function getBridge() {
+    return window.AstrBotPluginPage;
+}
 
 // ==================== 工具函数 ====================
 
@@ -77,7 +80,7 @@ function loadKamiList() {
     if (!container) return;
     container.innerHTML = '<p class="loading">加载中...</p>';
 
-    bridge.apiGet("kami_list").then(function (kamiList) {
+    getBridge().apiGet("kami_list").then(function (kamiList) {
         // bridge 已自动剥离包装，kamiList 直接就是数组
         if (!Array.isArray(kamiList)) {
             container.innerHTML = '<p class="error">数据格式异常</p>';
@@ -163,7 +166,7 @@ function doAddKamis(rawText) {
     }, 15000);
 
     try {
-        bridge.apiPost("kami_add", { kamis: kamis }).then(function (result) {
+        getBridge().apiPost("kami_add", { kamis: kamis }).then(function (result) {
             clearTimeout(timeoutId);
             console.log("[kami] 添加响应:", result);
             showToast(result.msg || "添加成功");
@@ -218,7 +221,7 @@ function handleFileSelected(event) {
 function deleteKami(kami) {
     if (!confirm("确定要删除卡密「" + kami + "」吗？\n相关的领取记录也会一并清除。")) return;
 
-    bridge.apiPost("kami_delete", { kami: kami }).then(function (result) {
+    getBridge().apiPost("kami_delete", { kami: kami }).then(function (result) {
         showToast(result.msg || "删除成功");
         loadKamiList();
     }).catch(function (e) {
@@ -229,7 +232,7 @@ function deleteKami(kami) {
 function clearUsedKamis() {
     if (!confirm("确定要一键重置吗？\n\n此操作将会：\n1. 从卡密池中删除所有已领取的旧卡密\n2. 清空所有领取记录\n\n未领取的卡密将保留。")) return;
 
-    bridge.apiPost("kami_clear_used", {}).then(function (result) {
+    getBridge().apiPost("kami_clear_used", {}).then(function (result) {
         showToast(result.msg || "操作成功");
         loadKamiList();
     }).catch(function (e) {
@@ -244,7 +247,7 @@ function loadRecords() {
     if (!container) return;
     container.innerHTML = '<p class="loading">加载中...</p>';
 
-    bridge.apiGet("records").then(function (records) {
+    getBridge().apiGet("records").then(function (records) {
         // bridge 已自动剥离包装，records 直接就是数组
         if (!Array.isArray(records)) {
             container.innerHTML = '<p class="error">数据格式异常</p>';
@@ -281,7 +284,7 @@ function loadRecords() {
 function resetUser(userId) {
     if (!confirm("确定要重置用户 " + userId + " 的领取状态吗？\n重置后该用户可以重新领取卡密。")) return;
 
-    bridge.apiPost("reset_user", { user_id: userId }).then(function (result) {
+    getBridge().apiPost("reset_user", { user_id: userId }).then(function (result) {
         showToast(result.msg || "重置成功");
         loadRecords();
     }).catch(function (e) {
@@ -292,7 +295,7 @@ function resetUser(userId) {
 // ==================== 配置设置 ====================
 
 function loadConfig() {
-    bridge.apiGet("config").then(function (cfg) {
+    getBridge().apiGet("config").then(function (cfg) {
         // bridge 已自动剥离包装，cfg 直接就是配置对象
         document.getElementById("claim-cmd-input").value = cfg.claim_command || "getkami";
         document.getElementById("cooldown-input").value = cfg.cooldown_hours || 24;
@@ -333,7 +336,7 @@ function saveConfig() {
     }, 15000);
 
     try {
-        bridge.apiPost("config_update", {
+        getBridge().apiPost("config_update", {
             claim_command: claimCmd,
             cooldown_hours: cooldownHours,
             whitelist_groups: whitelistGroups,
@@ -386,7 +389,7 @@ function saveConfig() {
 
     // 等待 bridge 就绪后加载初始数据
     if (window.AstrBotPluginPage && typeof window.AstrBotPluginPage.ready === "function") {
-        bridge.ready().then(function () {
+        getBridge().ready().then(function () {
             console.log("[kami] Bridge 就绪，加载卡密列表");
             loadKamiList();
         }).catch(function (e) {
