@@ -128,7 +128,11 @@ function addKamis() {
         return;
     }
 
-    var kamis = raw.split("\n").map(function (s) { return s.trim(); }).filter(function (s) { return s; });
+    doAddKamis(raw);
+}
+
+function doAddKamis(rawText) {
+    var kamis = rawText.split("\n").map(function (s) { return s.trim(); }).filter(function (s) { return s; });
     if (kamis.length === 0) {
         showToast("请输入有效卡密", true);
         return;
@@ -141,7 +145,7 @@ function addKamis() {
     bridge.apiPost("kami_add", { kamis: kamis }).then(function (result) {
         if (result.code === 0) {
             showToast(result.msg);
-            textarea.value = "";
+            document.getElementById("kami-input").value = "";
             loadKamiList();
         } else {
             showToast(result.msg || "添加失败", true);
@@ -153,6 +157,34 @@ function addKamis() {
         btn.disabled = false;
         btn.textContent = "添加卡密";
     });
+}
+
+function importFromFile() {
+    var fileInput = document.getElementById("file-input");
+    fileInput.click();
+}
+
+function handleFileSelected(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        var content = e.target.result;
+        if (!content || !content.trim()) {
+            showToast("文件内容为空", true);
+            return;
+        }
+        // 将内容填入文本框并自动添加
+        document.getElementById("kami-input").value = content;
+        doAddKamis(content);
+    };
+    reader.onerror = function () {
+        showToast("文件读取失败", true);
+    };
+    reader.readAsText(file, "UTF-8");
+    // 重置 file input 以便重新选择同一文件
+    event.target.value = "";
 }
 
 function deleteKami(kami) {
@@ -171,7 +203,7 @@ function deleteKami(kami) {
 }
 
 function clearUsedKamis() {
-    if (!confirm("确定要清空所有已领取记录吗？\n此操作将恢复所有卡密为可用状态，但领取记录会丢失。")) return;
+    if (!confirm("确定要一键重置吗？\n\n此操作将会：\n1. 从卡密池中删除所有已领取的旧卡密\n2. 清空所有领取记录\n\n未领取的卡密将保留。")) return;
 
     bridge.apiPost("kami_clear_used", {}).then(function (result) {
         if (result.code === 0) {
@@ -291,6 +323,12 @@ function saveConfig() {
     // 绑定按钮事件
     var btnAdd = document.getElementById("btn-add-kami");
     if (btnAdd) btnAdd.addEventListener("click", addKamis);
+
+    var btnImport = document.getElementById("btn-import-file");
+    if (btnImport) btnImport.addEventListener("click", importFromFile);
+
+    var fileInput = document.getElementById("file-input");
+    if (fileInput) fileInput.addEventListener("change", handleFileSelected);
 
     var btnRefresh = document.getElementById("btn-refresh-kami");
     if (btnRefresh) btnRefresh.addEventListener("click", loadKamiList);

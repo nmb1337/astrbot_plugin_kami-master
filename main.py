@@ -393,12 +393,21 @@ class KamiPlugin(Star):
             return jsonify({"code": 1, "msg": str(e)})
 
     async def api_kami_clear_used(self):
-        """POST — 清空已领取的卡密列表（不删除卡密池，只清除使用记录）"""
+        """POST — 一键重置：清除所有已领取的旧卡密（从卡密池中移除已使用的卡密，清空使用记录和领取记录）"""
         try:
+            pool = await self._get_kami_pool()
+            used = await self._get_used_kamis()
+            # 从卡密池中移除所有已使用的卡密，只保留未使用的
+            new_pool = [k for k in pool if k not in used]
+            removed_count = len(pool) - len(new_pool)
+            await self._save_kami_pool(new_pool)
             await self._save_used_kamis([])
             await self._save_claim_records({})
-            logger.info("已清空所有已领取卡密记录")
-            return jsonify({"code": 0, "msg": "已清空所有已领取记录，卡密池恢复为全新状态"})
+            logger.info(f"一键重置完成，清除了 {removed_count} 张旧卡密")
+            return jsonify({
+                "code": 0,
+                "msg": f"一键重置完成！已清除 {removed_count} 张已领取的旧卡密，剩余 {len(new_pool)} 张可用卡密。"
+            })
         except Exception as e:
             logger.error(f"清空记录失败: {e}")
             return jsonify({"code": 1, "msg": str(e)})

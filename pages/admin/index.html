@@ -20,7 +20,11 @@
                 <h3>添加卡密</h3>
                 <p class="hint">每行一个卡密，支持批量添加，重复的卡密会自动跳过。</p>
                 <textarea id="kami-input" rows="6" placeholder="在此粘贴卡密，每行一个..."></textarea>
-                <button id="btn-add-kami" class="btn btn-primary">添加卡密</button>
+                <div class="btn-row">
+                    <button id="btn-add-kami" class="btn btn-primary">添加卡密</button>
+                    <button id="btn-import-file" class="btn btn-secondary">📁 从文件导入</button>
+                    <input type="file" id="file-input" accept=".txt,.csv,.json" style="display:none" />
+                </div>
             </div>
 
             <div class="card">
@@ -30,7 +34,7 @@
                 </h3>
                 <div class="toolbar">
                     <button id="btn-refresh-kami" class="btn btn-secondary">刷新列表</button>
-                    <button id="btn-clear-used" class="btn btn-danger">清空已领取记录</button>
+                    <button id="btn-clear-used" class="btn btn-danger">一键重置（清除旧卡密）</button>
                 </div>
                 <div id="kami-list" class="list-container">
                     <p class="loading">加载中...</p>
