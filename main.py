@@ -110,14 +110,13 @@ class KamiPlugin(Star):
         await self.put_kv_data("claim_records", records)
 
     async def _get_whitelist(self) -> list:
-        """获取群白名单（优先从 config 读取，否则从 KV 读取）"""
-        cfg_list = self.config.get("whitelist_groups", None)
-        if cfg_list is not None and cfg_list:
-            return [str(g) for g in cfg_list]
-        # 回退到 KV 中的配置
+        """获取群白名单（优先从 KV 读取，回退到 config）"""
         data = await self.get_kv_data("whitelist_groups", None)
         if data is not None:
             return data
+        cfg_list = self.config.get("whitelist_groups", None)
+        if cfg_list:
+            return [str(g) for g in cfg_list]
         return []
 
     async def _save_whitelist(self, whitelist: list):
@@ -125,13 +124,13 @@ class KamiPlugin(Star):
         await self.put_kv_data("whitelist_groups", whitelist)
 
     async def _get_cooldown_hours(self) -> int:
-        """获取冷却时间（小时），优先从 config 读取，否则从 KV 读取"""
-        cfg_val = self.config.get("cooldown_hours", None)
-        if cfg_val is not None:
-            return int(cfg_val)
+        """获取冷却时间（小时），优先从 KV 读取，回退到 config"""
         data = await self.get_kv_data("cooldown_hours", None)
         if data is not None:
             return data
+        cfg_val = self.config.get("cooldown_hours", None)
+        if cfg_val is not None:
+            return int(cfg_val)
         return 24
 
     async def _save_cooldown_hours(self, hours: int):
@@ -139,13 +138,13 @@ class KamiPlugin(Star):
         await self.put_kv_data("cooldown_hours", hours)
 
     async def _get_claim_command(self) -> str:
-        """获取领取指令（优先从 config 读取，否则从 KV 读取）"""
-        cfg_val = self.config.get("claim_command", None)
-        if cfg_val:
-            return str(cfg_val)
+        """获取领取指令（优先从 KV 读取，回退到 config）"""
         data = await self.get_kv_data("claim_command", None)
         if data is not None:
             return data
+        cfg_val = self.config.get("claim_command", None)
+        if cfg_val:
+            return str(cfg_val)
         return "getkami"
 
     async def _save_claim_command(self, cmd: str):
@@ -313,15 +312,27 @@ class KamiPlugin(Star):
     ) -> bool:
         """尝试给用户发送私聊卡密消息，返回是否成功"""
         try:
-            # 从 unified_msg_origin 提取适配器类型
             umo = event.unified_msg_origin
-            parts = umo.split("|")
-            if len(parts) >= 3:
+            logger.info(f"[私发] 原始 UMO: {umo}, 目标用户: {target_user_id}")
+
+            # AstrBot UMO 格式可能是 "adapter|type|id" 或 "adapter:Type:id"
+            # 先尝试 | 分隔，再尝试 : 分隔
+            if "|" in umo and umo.count("|") >= 2:
+                parts = umo.split("|")
                 adapter_type = parts[0]
                 private_umo = f"{adapter_type}|private|{target_user_id}"
+            elif ":" in umo:
+                parts = umo.split(":")
+                if len(parts) >= 3:
+                    adapter_type = parts[0]
+                    private_umo = f"{adapter_type}:FriendMessage:{target_user_id}"
+                else:
+                    private_umo = umo.replace(":GroupMessage:", ":FriendMessage:")
             else:
-                # 回退：直接修改 group 为 private
-                private_umo = umo.replace("|group|", "|private|")
+                # 回退：替换 group 为 private
+                private_umo = umo.replace("|group|", "|private|").replace(":GroupMessage:", ":FriendMessage:")
+
+            logger.info(f"[私发] 构造的私聊 UMO: {private_umo}")
 
             chain = [
                 Plain(
@@ -331,9 +342,10 @@ class KamiPlugin(Star):
                 )
             ]
             await self.context.send_message(private_umo, chain)
+            logger.info(f"[私发] 成功发送卡密给 {target_user_id}")
             return True
         except Exception as e:
-            logger.error(f"私发卡密失败: {e}")
+            logger.error(f"[私发] 私发卡密失败: {e}", exc_info=True)
             return False
 
     # ==================== Web API ====================
@@ -436,22 +448,23 @@ class KamiPlugin(Star):
             return jsonify({"status": "error", "message": str(e)})
 
     async def api_kami_clear_used(self):
-        """POST — 一键重置：清除所有已领取的旧卡密（从卡密池中移除已使用的卡密，清空使用记录和领取记录）"""
+        """POST — 一键重置：清除所有已领取的旧卡密"""
         try:
+            logger.info("[kami_clear] 收到一键重置请求")
             pool = await self._get_kami_pool()
             used = await self._get_used_kamis()
-            # 从卡密池中移除所有已使用的卡密，只保留未使用的
+            logger.info(f"[kami_clear] 卡密池: {len(pool)}, 已用: {len(used)}")
             new_pool = [k for k in pool if k not in used]
             removed_count = len(pool) - len(new_pool)
             await self._save_kami_pool(new_pool)
             await self._save_used_kamis([])
             await self._save_claim_records({})
-            logger.info(f"一键重置完成，清除了 {removed_count} 张旧卡密")
+            logger.info(f"[kami_clear] 一键重置完成，清除 {removed_count} 张，剩余 {len(new_pool)} 张")
             return jsonify({
                 "msg": f"一键重置完成！已清除 {removed_count} 张已领取的旧卡密，剩余 {len(new_pool)} 张可用卡密。"
             })
         except Exception as e:
-            logger.error(f"清空记录失败: {e}")
+            logger.error(f"[kami_clear] 清空记录失败: {e}", exc_info=True)
             return jsonify({"status": "error", "message": str(e)})
 
     async def api_records(self):

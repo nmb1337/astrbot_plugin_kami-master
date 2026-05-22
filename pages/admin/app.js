@@ -284,12 +284,26 @@ function clearUsedKamis() {
     showConfirm("确定要一键重置吗？\n\n此操作将会：\n1. 从卡密池中删除所有已领取的旧卡密\n2. 清空所有领取记录\n\n未领取的卡密将保留。").then(function (ok) {
         if (!ok) return;
 
-        getBridge().apiPost("kami_clear_used", {}).then(function (result) {
-            showToast(result.msg || "操作成功");
-            loadKamiList();
-        }).catch(function (e) {
-            showToast(e.message || "操作失败", true);
-        });
+        if (!getBridge() || typeof getBridge().apiPost !== "function") {
+            showToast("Bridge 未就绪，请刷新页面后重试", true);
+            return;
+        }
+
+        console.log("[kami] 一键重置");
+
+        try {
+            getBridge().apiPost("kami_clear_used", {}).then(function (result) {
+                console.log("[kami] 重置响应:", result);
+                showToast(result.msg || "操作成功");
+                loadKamiList();
+            }).catch(function (e) {
+                console.error("[kami] 重置失败:", e);
+                showToast(e.message || "操作失败", true);
+            });
+        } catch (e) {
+            console.error("[kami] 调用 apiPost 时发生同步异常:", e);
+            showToast("请求异常: " + (e.message || String(e)), true);
+        }
     });
 }
 
