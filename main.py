@@ -154,7 +154,7 @@ class KamiPlugin(Star):
     # ==================== 指令 ====================
 
     @filter.regex(r"^/.+")
-    async def _handle_any_command(self, event: AstrMessageEvent, *args):
+    async def on_any_command(self, event: AstrMessageEvent, *args):
         """catch-all 指令处理器，匹配动态配置的领取指令（仅群聊）"""
         # 只处理群消息
         if not event.message_obj.group_id:
