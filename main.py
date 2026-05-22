@@ -153,13 +153,9 @@ class KamiPlugin(Star):
 
     # ==================== 指令 ====================
 
-    @filter.regex(r"^/.+")
-    async def on_any_command(self, event: AstrMessageEvent, *args):
-        """catch-all 指令处理器，匹配动态配置的领取指令（仅群聊）"""
-        # 只处理群消息
-        if not event.message_obj.group_id:
-            return
-
+    @filter.command("getkami")
+    async def on_any_command(self, event: AstrMessageEvent):
+        """领取卡密指令 — 默认 /getkami，可在 WebUI 配置面板修改指令名"""
         msg = event.message_str.strip()
         claim_cmd = await self._get_claim_command()
 
