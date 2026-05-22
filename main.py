@@ -110,35 +110,43 @@ class KamiPlugin(Star):
         await self.put_kv_data("claim_records", records)
 
     async def _get_whitelist(self) -> list:
-        """获取群白名单（优先从 KV 读取，否则从 config 读取）"""
+        """获取群白名单（优先从 config 读取，否则从 KV 读取）"""
+        cfg_list = self.config.get("whitelist_groups", None)
+        if cfg_list is not None and cfg_list:
+            return [str(g) for g in cfg_list]
+        # 回退到 KV 中的配置
         data = await self.get_kv_data("whitelist_groups", None)
         if data is not None:
             return data
-        # 回退到 config 中的配置
-        cfg_list = self.config.get("whitelist_groups", [])
-        return [str(g) for g in cfg_list]
+        return []
 
     async def _save_whitelist(self, whitelist: list):
         """保存群白名单"""
         await self.put_kv_data("whitelist_groups", whitelist)
 
     async def _get_cooldown_hours(self) -> int:
-        """获取冷却时间（小时）"""
+        """获取冷却时间（小时），优先从 config 读取，否则从 KV 读取"""
+        cfg_val = self.config.get("cooldown_hours", None)
+        if cfg_val is not None:
+            return int(cfg_val)
         data = await self.get_kv_data("cooldown_hours", None)
         if data is not None:
             return data
-        return self.config.get("cooldown_hours", 24)
+        return 24
 
     async def _save_cooldown_hours(self, hours: int):
         """保存冷却时间"""
         await self.put_kv_data("cooldown_hours", hours)
 
     async def _get_claim_command(self) -> str:
-        """获取领取指令（优先从 KV 读取，否则从 config 读取）"""
+        """获取领取指令（优先从 config 读取，否则从 KV 读取）"""
+        cfg_val = self.config.get("claim_command", None)
+        if cfg_val:
+            return str(cfg_val)
         data = await self.get_kv_data("claim_command", None)
         if data is not None:
             return data
-        return self.config.get("claim_command", "getkami")
+        return "getkami"
 
     async def _save_claim_command(self, cmd: str):
         """保存领取指令"""
@@ -356,7 +364,7 @@ class KamiPlugin(Star):
                 "claimed_by": claimed_by,
                 "claimed_time": claimed_time,
             })
-        return jsonify({"code": 0, "data": kami_list})
+        return jsonify(kami_list)
 
     async def api_kami_add(self):
         """POST — 批量添加卡密 {kamis: ["xxx", "yyy"]}"""
@@ -364,7 +372,7 @@ class KamiPlugin(Star):
             body = await request.get_json()
             new_kamis = body.get("kamis", [])
             if not new_kamis:
-                return jsonify({"code": 1, "msg": "卡密列表不能为空"})
+                return jsonify({"status": "error", "message": "卡密列表不能为空"})
 
             # 去重
             pool = await self._get_kami_pool()
@@ -379,10 +387,10 @@ class KamiPlugin(Star):
 
             await self._save_kami_pool(pool)
             logger.info(f"添加了 {len(added)} 张卡密")
-            return jsonify({"code": 0, "msg": f"成功添加 {len(added)} 张卡密", "added": len(added)})
+            return jsonify({"msg": f"成功添加 {len(added)} 张卡密", "added": len(added)})
         except Exception as e:
             logger.error(f"添加卡密失败: {e}")
-            return jsonify({"code": 1, "msg": str(e)})
+            return jsonify({"status": "error", "message": str(e)})
 
     async def api_kami_delete(self):
         """POST — 删除指定卡密 {kami: "xxx"}"""
@@ -390,7 +398,7 @@ class KamiPlugin(Star):
             body = await request.get_json()
             kami = body.get("kami", "").strip()
             if not kami:
-                return jsonify({"code": 1, "msg": "请指定要删除的卡密"})
+                return jsonify({"status": "error", "message": "请指定要删除的卡密"})
 
             pool = await self._get_kami_pool()
             used = await self._get_used_kamis()
@@ -410,10 +418,10 @@ class KamiPlugin(Star):
             await self._save_used_kamis(used)
             await self._save_claim_records(records)
             logger.info(f"删除了卡密: {kami}")
-            return jsonify({"code": 0, "msg": "卡密已删除"})
+            return jsonify({"msg": "卡密已删除"})
         except Exception as e:
             logger.error(f"删除卡密失败: {e}")
-            return jsonify({"code": 1, "msg": str(e)})
+            return jsonify({"status": "error", "message": str(e)})
 
     async def api_kami_clear_used(self):
         """POST — 一键重置：清除所有已领取的旧卡密（从卡密池中移除已使用的卡密，清空使用记录和领取记录）"""
@@ -428,12 +436,11 @@ class KamiPlugin(Star):
             await self._save_claim_records({})
             logger.info(f"一键重置完成，清除了 {removed_count} 张旧卡密")
             return jsonify({
-                "code": 0,
                 "msg": f"一键重置完成！已清除 {removed_count} 张已领取的旧卡密，剩余 {len(new_pool)} 张可用卡密。"
             })
         except Exception as e:
             logger.error(f"清空记录失败: {e}")
-            return jsonify({"code": 1, "msg": str(e)})
+            return jsonify({"status": "error", "message": str(e)})
 
     async def api_records(self):
         """GET — 获取领取记录"""
@@ -450,7 +457,7 @@ class KamiPlugin(Star):
             })
         # 按时间倒序
         record_list.sort(key=lambda x: x["timestamp"], reverse=True)
-        return jsonify({"code": 0, "data": record_list})
+        return jsonify(record_list)
 
     async def api_reset_user(self):
         """POST — 重置用户领取状态 {user_id: "xxx"}"""
@@ -458,24 +465,24 @@ class KamiPlugin(Star):
             body = await request.get_json()
             user_id = body.get("user_id", "").strip()
             if not user_id:
-                return jsonify({"code": 1, "msg": "请指定用户 ID"})
+                return jsonify({"status": "error", "message": "请指定用户 ID"})
 
             records = await self._get_claim_records()
             if user_id in records:
                 records.pop(user_id)
                 await self._save_claim_records(records)
                 logger.info(f"管理员重置了用户 {user_id} 的领取状态")
-                return jsonify({"code": 0, "msg": f"已重置用户 {user_id} 的领取状态"})
+                return jsonify({"msg": f"已重置用户 {user_id} 的领取状态"})
             else:
-                return jsonify({"code": 0, "msg": f"用户 {user_id} 没有领取记录"})
+                return jsonify({"msg": f"用户 {user_id} 没有领取记录"})
         except Exception as e:
             logger.error(f"重置用户失败: {e}")
-            return jsonify({"code": 1, "msg": str(e)})
+            return jsonify({"status": "error", "message": str(e)})
 
     async def api_whitelist(self):
         """GET — 获取群白名单"""
         whitelist = await self._get_whitelist()
-        return jsonify({"code": 0, "data": whitelist})
+        return jsonify(whitelist)
 
     async def api_whitelist_update(self):
         """POST — 更新群白名单 {groups: ["123", "456"]}"""
@@ -485,10 +492,10 @@ class KamiPlugin(Star):
             groups = [str(g).strip() for g in groups if str(g).strip()]
             await self._save_whitelist(groups)
             logger.info(f"群白名单已更新: {groups}")
-            return jsonify({"code": 0, "msg": f"白名单已更新，当前 {len(groups)} 个群", "data": groups})
+            return jsonify({"msg": f"白名单已更新，当前 {len(groups)} 个群", "data": groups})
         except Exception as e:
             logger.error(f"更新白名单失败: {e}")
-            return jsonify({"code": 1, "msg": str(e)})
+            return jsonify({"status": "error", "message": str(e)})
 
     async def api_get_config(self):
         """GET — 获取插件配置"""
@@ -496,12 +503,9 @@ class KamiPlugin(Star):
         whitelist = await self._get_whitelist()
         claim_cmd = await self._get_claim_command()
         return jsonify({
-            "code": 0,
-            "data": {
-                "claim_command": claim_cmd,
-                "cooldown_hours": cooldown,
-                "whitelist_groups": whitelist,
-            }
+            "claim_command": claim_cmd,
+            "cooldown_hours": cooldown,
+            "whitelist_groups": whitelist,
         })
 
     async def api_update_config(self):
@@ -512,17 +516,30 @@ class KamiPlugin(Star):
                 cmd = str(body["claim_command"]).strip()
                 if cmd:
                     await self._save_claim_command(cmd)
+                    # 同步到 self.config，确保内置配置面板也能看到变化
+                    try:
+                        self.config["claim_command"] = cmd
+                    except Exception:
+                        pass
             if "cooldown_hours" in body:
                 hours = int(body["cooldown_hours"])
                 await self._save_cooldown_hours(hours)
+                try:
+                    self.config["cooldown_hours"] = hours
+                except Exception:
+                    pass
             if "whitelist_groups" in body:
                 groups = [str(g).strip() for g in body["whitelist_groups"] if str(g).strip()]
                 await self._save_whitelist(groups)
+                try:
+                    self.config["whitelist_groups"] = groups
+                except Exception:
+                    pass
             logger.info("插件配置已更新")
-            return jsonify({"code": 0, "msg": "配置已更新"})
+            return jsonify({"msg": "配置已更新"})
         except Exception as e:
             logger.error(f"更新配置失败: {e}")
-            return jsonify({"code": 1, "msg": str(e)})
+            return jsonify({"status": "error", "message": str(e)})
 
     # ==================== 生命周期 ====================
 

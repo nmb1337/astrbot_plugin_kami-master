@@ -77,13 +77,13 @@ function loadKamiList() {
     if (!container) return;
     container.innerHTML = '<p class="loading">加载中...</p>';
 
-    bridge.apiGet("kami_list").then(function (data) {
-        if (data.code !== 0) {
-            container.innerHTML = '<p class="error">加载失败: ' + escapeHtml(data.msg || "未知错误") + '</p>';
+    bridge.apiGet("kami_list").then(function (kamiList) {
+        // bridge 已自动剥离包装，kamiList 直接就是数组
+        if (!Array.isArray(kamiList)) {
+            container.innerHTML = '<p class="error">数据格式异常</p>';
             return;
         }
 
-        var kamiList = data.data || [];
         var total = kamiList.length;
         var used = kamiList.filter(function (k) { return k.used; }).length;
         var available = total - used;
@@ -116,7 +116,7 @@ function loadKamiList() {
         html += "</tbody></table>";
         container.innerHTML = html;
     }).catch(function (e) {
-        container.innerHTML = '<p class="error">请求失败: ' + escapeHtml(String(e)) + '</p>';
+        container.innerHTML = '<p class="error">请求失败: ' + escapeHtml(e.message || String(e)) + '</p>';
     });
 }
 
@@ -143,17 +143,13 @@ function doAddKamis(rawText) {
     btn.textContent = "添加中...";
 
     bridge.apiPost("kami_add", { kamis: kamis }).then(function (result) {
-        if (result.code === 0) {
-            showToast(result.msg);
-            document.getElementById("kami-input").value = "";
-            loadKamiList();
-        } else {
-            showToast(result.msg || "添加失败", true);
-        }
+        showToast(result.msg || "添加成功");
+        document.getElementById("kami-input").value = "";
+        loadKamiList();
         btn.disabled = false;
         btn.textContent = "添加卡密";
     }).catch(function (e) {
-        showToast("请求失败: " + String(e), true);
+        showToast(e.message || "请求失败", true);
         btn.disabled = false;
         btn.textContent = "添加卡密";
     });
@@ -191,14 +187,10 @@ function deleteKami(kami) {
     if (!confirm("确定要删除卡密「" + kami + "」吗？\n相关的领取记录也会一并清除。")) return;
 
     bridge.apiPost("kami_delete", { kami: kami }).then(function (result) {
-        if (result.code === 0) {
-            showToast(result.msg);
-            loadKamiList();
-        } else {
-            showToast(result.msg || "删除失败", true);
-        }
+        showToast(result.msg || "删除成功");
+        loadKamiList();
     }).catch(function (e) {
-        showToast("请求失败: " + String(e), true);
+        showToast(e.message || "删除失败", true);
     });
 }
 
@@ -206,14 +198,10 @@ function clearUsedKamis() {
     if (!confirm("确定要一键重置吗？\n\n此操作将会：\n1. 从卡密池中删除所有已领取的旧卡密\n2. 清空所有领取记录\n\n未领取的卡密将保留。")) return;
 
     bridge.apiPost("kami_clear_used", {}).then(function (result) {
-        if (result.code === 0) {
-            showToast(result.msg);
-            loadKamiList();
-        } else {
-            showToast(result.msg || "操作失败", true);
-        }
+        showToast(result.msg || "操作成功");
+        loadKamiList();
     }).catch(function (e) {
-        showToast("请求失败: " + String(e), true);
+        showToast(e.message || "操作失败", true);
     });
 }
 
@@ -224,13 +212,13 @@ function loadRecords() {
     if (!container) return;
     container.innerHTML = '<p class="loading">加载中...</p>';
 
-    bridge.apiGet("records").then(function (data) {
-        if (data.code !== 0) {
-            container.innerHTML = '<p class="error">加载失败: ' + escapeHtml(data.msg || "未知错误") + '</p>';
+    bridge.apiGet("records").then(function (records) {
+        // bridge 已自动剥离包装，records 直接就是数组
+        if (!Array.isArray(records)) {
+            container.innerHTML = '<p class="error">数据格式异常</p>';
             return;
         }
 
-        var records = data.data || [];
         var stats = document.getElementById("records-stats");
         if (stats) stats.textContent = "共 " + records.length + " 条记录";
 
@@ -254,7 +242,7 @@ function loadRecords() {
         html += "</tbody></table>";
         container.innerHTML = html;
     }).catch(function (e) {
-        container.innerHTML = '<p class="error">请求失败: ' + escapeHtml(String(e)) + '</p>';
+        container.innerHTML = '<p class="error">请求失败: ' + escapeHtml(e.message || String(e)) + '</p>';
     });
 }
 
@@ -262,30 +250,24 @@ function resetUser(userId) {
     if (!confirm("确定要重置用户 " + userId + " 的领取状态吗？\n重置后该用户可以重新领取卡密。")) return;
 
     bridge.apiPost("reset_user", { user_id: userId }).then(function (result) {
-        if (result.code === 0) {
-            showToast(result.msg);
-            loadRecords();
-        } else {
-            showToast(result.msg || "重置失败", true);
-        }
+        showToast(result.msg || "重置成功");
+        loadRecords();
     }).catch(function (e) {
-        showToast("请求失败: " + String(e), true);
+        showToast(e.message || "重置失败", true);
     });
 }
 
 // ==================== 配置设置 ====================
 
 function loadConfig() {
-    bridge.apiGet("config").then(function (data) {
-        if (data.code === 0) {
-            var cfg = data.data || {};
-            document.getElementById("claim-cmd-input").value = cfg.claim_command || "getkami";
-            document.getElementById("cooldown-input").value = cfg.cooldown_hours || 24;
-            var whitelist = cfg.whitelist_groups || [];
-            document.getElementById("whitelist-input").value = whitelist.join("\n");
-        }
+    bridge.apiGet("config").then(function (cfg) {
+        // bridge 已自动剥离包装，cfg 直接就是配置对象
+        document.getElementById("claim-cmd-input").value = cfg.claim_command || "getkami";
+        document.getElementById("cooldown-input").value = cfg.cooldown_hours || 24;
+        var whitelist = cfg.whitelist_groups || [];
+        document.getElementById("whitelist-input").value = whitelist.join("\n");
     }).catch(function (e) {
-        showToast("加载配置失败: " + String(e), true);
+        showToast("加载配置失败: " + (e.message || String(e)), true);
     });
 }
 
@@ -306,15 +288,11 @@ function saveConfig() {
         cooldown_hours: cooldownHours,
         whitelist_groups: whitelistGroups,
     }).then(function (result) {
-        if (result.code === 0) {
-            showToast("配置保存成功！");
-        } else {
-            showToast(result.msg || "保存失败", true);
-        }
+        showToast(result.msg || "配置保存成功！");
         btn.disabled = false;
         btn.textContent = "保存配置";
     }).catch(function (e) {
-        showToast("保存失败: " + String(e), true);
+        showToast(e.message || "保存失败", true);
         btn.disabled = false;
         btn.textContent = "保存配置";
     });
