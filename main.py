@@ -200,23 +200,18 @@ class KamiPlugin(Star):
         }
         await self._save_claim_records(records)
 
-        # 5. 尝试私发卡密
+        # 5. 私发卡密，失败则在群里发放
         success = await self._send_private_message(event, sender_id, kami)
         if success:
             logger.info(f"用户 {sender_name}({sender_id}) 领取卡密成功，已私发。")
-            yield event.plain_result(f"✅ {sender_name}，卡密已私发给你，请查看私聊消息~")
+            yield event.plain_result(f"✅ {sender_name}，卡密已私发给你，请查看私聊~")
         else:
-            # 私发失败，在群里提示（不暴露卡密内容）
-            logger.warning(f"私发卡密给 {sender_id} 失败，可能未添加好友或私聊不可达。")
+            # 私发失败，直接群里发
+            logger.warning(f"私发卡密给 {sender_id} 失败，改为群内发放。")
             yield event.plain_result(
-                f"⚠️ {sender_name}，卡密私发失败，请确认你已添加机器人为好友并开启了私聊。\n"
-                f"如无法私聊，请联系管理员手动发放。"
+                f"🎫 {sender_name}，私发失败，卡密直接发这里：\n\n{kami}\n\n"
+                f"请妥善保管，不要泄露给他人。"
             )
-            # 回滚：把卡密放回去
-            used_kamis.remove(kami)
-            await self._save_used_kamis(used_kamis)
-            records.pop(sender_id, None)
-            await self._save_claim_records(records)
 
         event.stop_event()
 
@@ -290,41 +285,28 @@ class KamiPlugin(Star):
     async def _send_private_message(
         self, event: AstrMessageEvent, target_user_id: str, kami: str
     ) -> bool:
-        """尝试给用户发送私聊卡密消息，返回是否成功"""
+        """发送私聊卡密（群临时会话，无需加好友），失败返回 False"""
         try:
             umo = event.unified_msg_origin
-            logger.info(f"[私发] 原始 UMO: {umo}, 目标用户: {target_user_id}")
+            logger.info(f"[私发] 原始 UMO: {umo}, 目标: {target_user_id}")
 
-            # AstrBot UMO 格式: adapter:MessageType:id
-            # MessageType 枚举: GroupMessage / FriendMessage(私聊) / OtherMessage
+            # 用原始 UMO 替换为私聊格式: adapter:FriendMessage:user_id
             if ":" in umo:
-                parts = umo.split(":")
-                if len(parts) >= 3:
-                    adapter_type = parts[0]
-                    private_umo = f"{adapter_type}:FriendMessage:{target_user_id}"
-                else:
-                    private_umo = umo.replace(":GroupMessage:", ":FriendMessage:")
-            elif "|" in umo and umo.count("|") >= 2:
-                parts = umo.split("|")
-                adapter_type = parts[0]
-                private_umo = f"{adapter_type}|FriendMessage|{target_user_id}"
+                adapter = umo.split(":")[0]
+                private_umo = f"{adapter}:FriendMessage:{target_user_id}"
             else:
-                private_umo = umo.replace(":GroupMessage:", ":FriendMessage:")
+                private_umo = f"aiocqhttp:FriendMessage:{target_user_id}"
 
-            logger.info(f"[私发] 构造的私聊 UMO: {private_umo}")
+            logger.info(f"[私发] 私聊 UMO: {private_umo}")
 
             chain = MessageChain([
-                Plain(
-                    f"🎫 你领取的卡密是：\n\n{kami}\n\n"
-                    f"请妥善保管，不要泄露给他人。\n"
-                    f"如有问题请联系管理员。"
-                )
+                Plain(f"🎫 你领取的卡密是：\n\n{kami}\n\n请妥善保管，不要泄露给他人。")
             ])
             await self.context.send_message(private_umo, chain)
-            logger.info(f"[私发] 成功发送卡密给 {target_user_id}")
+            logger.info(f"[私发] 成功")
             return True
         except Exception as e:
-            logger.error(f"[私发] 私发卡密失败: {e}", exc_info=True)
+            logger.error(f"[私发] 失败: {e}")
             return False
 
     # ==================== Web API ====================
