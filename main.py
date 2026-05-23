@@ -294,22 +294,21 @@ class KamiPlugin(Star):
             umo = event.unified_msg_origin
             logger.info(f"[私发] 原始 UMO: {umo}, 目标用户: {target_user_id}")
 
-            # AstrBot UMO 格式: adapter:MessageType:id 或 adapter|MessageType|id
-            # 群聊: aiocqhttp:GroupMessage:群号
-            # 私聊: aiocqhttp:PrivateMessage:用户QQ号
+            # AstrBot UMO 格式: adapter:MessageType:id
+            # MessageType 枚举: GroupMessage / FriendMessage(私聊) / OtherMessage
             if ":" in umo:
                 parts = umo.split(":")
                 if len(parts) >= 3:
                     adapter_type = parts[0]
-                    private_umo = f"{adapter_type}:PrivateMessage:{target_user_id}"
+                    private_umo = f"{adapter_type}:FriendMessage:{target_user_id}"
                 else:
-                    private_umo = umo.replace(":GroupMessage:", ":PrivateMessage:")
+                    private_umo = umo.replace(":GroupMessage:", ":FriendMessage:")
             elif "|" in umo and umo.count("|") >= 2:
                 parts = umo.split("|")
                 adapter_type = parts[0]
-                private_umo = f"{adapter_type}|PrivateMessage|{target_user_id}"
+                private_umo = f"{adapter_type}|FriendMessage|{target_user_id}"
             else:
-                private_umo = umo.replace(":GroupMessage:", ":PrivateMessage:").replace("|group|", "|private|")
+                private_umo = umo.replace(":GroupMessage:", ":FriendMessage:")
 
             logger.info(f"[私发] 构造的私聊 UMO: {private_umo}")
 
