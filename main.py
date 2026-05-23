@@ -153,27 +153,10 @@ class KamiPlugin(Star):
 
     # ==================== 指令 ====================
 
-    @filter.command("getkami")
-    async def on_any_command(self, event: AstrMessageEvent):
-        """领取卡密指令 — 默认 /getkami，可在 WebUI 配置面板修改指令名"""
-        msg = event.message_str.strip()
-        claim_cmd = await self._get_claim_command()
-
-        expected_prefix = "/" + claim_cmd
-        matched = (
-            msg == expected_prefix
-            or msg.startswith(expected_prefix + " ")
-            or msg.startswith(expected_prefix + "@")
-        )
-
-        logger.info(
-            f"[指令匹配] 收到: '{msg}', 当前领取指令: '{claim_cmd}', 匹配: {matched}"
-        )
-
-        if not matched:
-            return
-
-        logger.info(f"[指令匹配] 匹配成功，user={event.get_sender_name()}, cmd={claim_cmd}")
+    @filter.command("柯南不工藤大佬nb")
+    async def on_claim_command(self, event: AstrMessageEvent):
+        """领取卡密指令 — /柯南不工藤大佬nb"""
+        logger.info(f"[指令匹配] 领取卡密，user={event.get_sender_name()}")
         async for result in self._do_get_kami(event):
             yield result
 
