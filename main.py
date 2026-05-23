@@ -200,18 +200,21 @@ class KamiPlugin(Star):
         }
         await self._save_claim_records(records)
 
-        # 5. 私发卡密，失败则在群里发放
+        # 5. 好友私聊发送卡密
         success = await self._send_private_message(event, sender_id, kami)
         if success:
             logger.info(f"用户 {sender_name}({sender_id}) 领取卡密成功，已私发。")
             yield event.plain_result(f"✅ {sender_name}，卡密已私发给你，请查看私聊~")
         else:
-            # 私发失败，直接群里发
-            logger.warning(f"私发卡密给 {sender_id} 失败，改为群内发放。")
+            logger.warning(f"私发卡密给 {sender_id} 失败。")
             yield event.plain_result(
-                f"🎫 {sender_name}，私发失败，卡密直接发这里：\n\n{kami}\n\n"
-                f"请妥善保管，不要泄露给他人。"
+                f"⚠️ {sender_name}，卡密私发失败，请先添加机器人为好友后再试。"
             )
+            # 回滚：把卡密放回池子
+            used_kamis.remove(kami)
+            await self._save_used_kamis(used_kamis)
+            records.pop(sender_id, None)
+            await self._save_claim_records(records)
 
         event.stop_event()
 
