@@ -7,6 +7,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger, AstrBotConfig
 from astrbot.api.message_components import Plain, At
+from astrbot.core.message.message_event_result import MessageChain
 from quart import jsonify, request
 
 PLUGIN_NAME = "astrbot_plugin_kami"
@@ -312,13 +313,13 @@ class KamiPlugin(Star):
 
             logger.info(f"[私发] 构造的私聊 UMO: {private_umo}")
 
-            chain = [
+            chain = MessageChain([
                 Plain(
                     f"🎫 你领取的卡密是：\n\n{kami}\n\n"
                     f"请妥善保管，不要泄露给他人。\n"
                     f"如有问题请联系管理员。"
                 )
-            ]
+            ])
             await self.context.send_message(private_umo, chain)
             logger.info(f"[私发] 成功发送卡密给 {target_user_id}")
             return True
