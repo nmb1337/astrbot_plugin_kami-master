@@ -303,7 +303,11 @@ class KamiPlugin(Star):
             logger.info(f"[私发] 私聊 UMO: {private_umo}")
 
             chain = MessageChain([
-                Plain(f"🎫 你领取的卡密是：\n\n{kami}\n\n请妥善保管，不要泄露给他人。")
+                Plain(
+                    f"🎫 你领取的卡密是：\n\n{kami}\n\n"
+                    f"请妥善保管，不要泄露给他人。\n"
+                    f"⚠️ 获取卡密指令只能在群里发，私聊发送发现拉黑！"
+                )
             ])
             await self.context.send_message(private_umo, chain)
             logger.info(f"[私发] 成功")
