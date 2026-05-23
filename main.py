@@ -137,20 +137,6 @@ class KamiPlugin(Star):
         """保存冷却时间"""
         await self.put_kv_data("cooldown_hours", hours)
 
-    async def _get_claim_command(self) -> str:
-        """获取领取指令（优先从 KV 读取，回退到 config）"""
-        data = await self.get_kv_data("claim_command", None)
-        if data is not None:
-            return data
-        cfg_val = self.config.get("claim_command", None)
-        if cfg_val:
-            return str(cfg_val)
-        return "getkami"
-
-    async def _save_claim_command(self, cmd: str):
-        """保存领取指令"""
-        await self.put_kv_data("claim_command", cmd)
-
     # ==================== 指令 ====================
 
     @filter.command("柯南不工藤大佬nb")
@@ -308,22 +294,22 @@ class KamiPlugin(Star):
             umo = event.unified_msg_origin
             logger.info(f"[私发] 原始 UMO: {umo}, 目标用户: {target_user_id}")
 
-            # AstrBot UMO 格式可能是 "adapter|type|id" 或 "adapter:Type:id"
-            # 先尝试 | 分隔，再尝试 : 分隔
-            if "|" in umo and umo.count("|") >= 2:
-                parts = umo.split("|")
-                adapter_type = parts[0]
-                private_umo = f"{adapter_type}|private|{target_user_id}"
-            elif ":" in umo:
+            # AstrBot UMO 格式: adapter:MessageType:id 或 adapter|MessageType|id
+            # 群聊: aiocqhttp:GroupMessage:群号
+            # 私聊: aiocqhttp:PrivateMessage:用户QQ号
+            if ":" in umo:
                 parts = umo.split(":")
                 if len(parts) >= 3:
                     adapter_type = parts[0]
-                    private_umo = f"{adapter_type}:FriendMessage:{target_user_id}"
+                    private_umo = f"{adapter_type}:PrivateMessage:{target_user_id}"
                 else:
-                    private_umo = umo.replace(":GroupMessage:", ":FriendMessage:")
+                    private_umo = umo.replace(":GroupMessage:", ":PrivateMessage:")
+            elif "|" in umo and umo.count("|") >= 2:
+                parts = umo.split("|")
+                adapter_type = parts[0]
+                private_umo = f"{adapter_type}|PrivateMessage|{target_user_id}"
             else:
-                # 回退：替换 group 为 private
-                private_umo = umo.replace("|group|", "|private|").replace(":GroupMessage:", ":FriendMessage:")
+                private_umo = umo.replace(":GroupMessage:", ":PrivateMessage:").replace("|group|", "|private|")
 
             logger.info(f"[私发] 构造的私聊 UMO: {private_umo}")
 
@@ -523,28 +509,17 @@ class KamiPlugin(Star):
         """GET — 获取插件配置"""
         cooldown = await self._get_cooldown_hours()
         whitelist = await self._get_whitelist()
-        claim_cmd = await self._get_claim_command()
         return jsonify({
-            "claim_command": claim_cmd,
             "cooldown_hours": cooldown,
             "whitelist_groups": whitelist,
         })
 
     async def api_update_config(self):
-        """POST — 更新插件配置 {claim_command, cooldown_hours, whitelist_groups}"""
+        """POST — 更新插件配置 {cooldown_hours, whitelist_groups}"""
         try:
             body = await request.get_json(silent=True)
             if body is None:
                 return jsonify({"status": "error", "message": "请求体格式错误，需要 JSON"})
-            if "claim_command" in body:
-                cmd = str(body["claim_command"]).strip()
-                if cmd:
-                    await self._save_claim_command(cmd)
-                    # 同步到 self.config，确保内置配置面板也能看到变化
-                    try:
-                        self.config["claim_command"] = cmd
-                    except Exception:
-                        pass
             if "cooldown_hours" in body:
                 hours = int(body["cooldown_hours"])
                 await self._save_cooldown_hours(hours)

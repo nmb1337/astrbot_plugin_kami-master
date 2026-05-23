@@ -379,8 +379,6 @@ function resetUser(userId) {
 
 function loadConfig() {
     getBridge().apiGet("config").then(function (cfg) {
-        // bridge 已自动剥离包装，cfg 直接就是配置对象
-        document.getElementById("claim-cmd-input").value = cfg.claim_command || "getkami";
         document.getElementById("cooldown-input").value = cfg.cooldown_hours || 24;
         var whitelist = cfg.whitelist_groups || [];
         document.getElementById("whitelist-input").value = whitelist.join("\n");
@@ -390,7 +388,6 @@ function loadConfig() {
 }
 
 function saveConfig() {
-    var claimCmd = document.getElementById("claim-cmd-input").value.trim() || "getkami";
     var cooldownHours = parseInt(document.getElementById("cooldown-input").value) || 0;
     var whitelistRaw = document.getElementById("whitelist-input").value.trim();
     var whitelistGroups = whitelistRaw
@@ -408,7 +405,7 @@ function saveConfig() {
         return;
     }
 
-    console.log("[kami] 保存配置:", { claim_command: claimCmd, cooldown_hours: cooldownHours, whitelist_groups: whitelistGroups });
+    console.log("[kami] 保存配置:", { cooldown_hours: cooldownHours, whitelist_groups: whitelistGroups });
 
     var timeoutId = setTimeout(function () {
         if (btn.disabled) {
@@ -420,7 +417,6 @@ function saveConfig() {
 
     try {
         getBridge().apiPost("config_update", {
-            claim_command: claimCmd,
             cooldown_hours: cooldownHours,
             whitelist_groups: whitelistGroups,
         }).then(function (result) {
