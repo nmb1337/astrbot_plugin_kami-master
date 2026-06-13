@@ -10,5 +10,11 @@
     "type": "list",
     "default": [],
     "hint": "只有在白名单内的群才能使用卡密功能。留空表示不限制（不推荐）。"
+  },
+  "whitelist_users": {
+    "description": "用户白名单（用户 ID 列表，每行一个）",
+    "type": "list",
+    "default": [],
+    "hint": "白名单内的用户领取卡密不受冷却时间限制。"
   }
 }

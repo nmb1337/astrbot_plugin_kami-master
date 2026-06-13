@@ -382,6 +382,8 @@ function loadConfig() {
         document.getElementById("cooldown-input").value = cfg.cooldown_hours || 24;
         var whitelist = cfg.whitelist_groups || [];
         document.getElementById("whitelist-input").value = whitelist.join("\n");
+        var userWhitelist = cfg.whitelist_users || [];
+        document.getElementById("user-whitelist-input").value = userWhitelist.join("\n");
     }).catch(function (e) {
         showToast("加载配置失败: " + (e.message || String(e)), true);
     });
@@ -392,6 +394,10 @@ function saveConfig() {
     var whitelistRaw = document.getElementById("whitelist-input").value.trim();
     var whitelistGroups = whitelistRaw
         ? whitelistRaw.split("\n").map(function (s) { return s.trim(); }).filter(function (s) { return s; })
+        : [];
+    var userWhitelistRaw = document.getElementById("user-whitelist-input").value.trim();
+    var whitelistUsers = userWhitelistRaw
+        ? userWhitelistRaw.split("\n").map(function (s) { return s.trim(); }).filter(function (s) { return s; })
         : [];
 
     var btn = document.getElementById("btn-save-config");
@@ -405,7 +411,7 @@ function saveConfig() {
         return;
     }
 
-    console.log("[kami] 保存配置:", { cooldown_hours: cooldownHours, whitelist_groups: whitelistGroups });
+    console.log("[kami] 保存配置:", { cooldown_hours: cooldownHours, whitelist_groups: whitelistGroups, whitelist_users: whitelistUsers });
 
     var timeoutId = setTimeout(function () {
         if (btn.disabled) {
@@ -419,6 +425,7 @@ function saveConfig() {
         getBridge().apiPost("config_update", {
             cooldown_hours: cooldownHours,
             whitelist_groups: whitelistGroups,
+            whitelist_users: whitelistUsers,
         }).then(function (result) {
             clearTimeout(timeoutId);
             console.log("[kami] 配置保存响应:", result);

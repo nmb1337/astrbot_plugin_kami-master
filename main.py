@@ -138,6 +138,20 @@ class KamiPlugin(Star):
         """保存冷却时间"""
         await self.put_kv_data("cooldown_hours", hours)
 
+    async def _get_user_whitelist(self) -> list:
+        """获取用户白名单（优先从 KV 读取，回退到 config）"""
+        data = await self.get_kv_data("whitelist_users", None)
+        if data is not None:
+            return data
+        cfg_list = self.config.get("whitelist_users", None)
+        if cfg_list:
+            return [str(u) for u in cfg_list]
+        return []
+
+    async def _save_user_whitelist(self, users: list):
+        """保存用户白名单"""
+        await self.put_kv_data("whitelist_users", users)
+
     # ==================== 指令 ====================
 
     @filter.command("柯南不工藤大佬nb")
@@ -160,22 +174,24 @@ class KamiPlugin(Star):
             event.stop_event()
             return
 
-        # 2. 检查冷却时间
-        cooldown_hours = await self._get_cooldown_hours()
-        records = await self._get_claim_records()
-        if cooldown_hours > 0 and sender_id in records:
-            last_claim = records[sender_id]
-            last_time = last_claim.get("timestamp", 0)
-            elapsed = time.time() - last_time
-            if elapsed < cooldown_hours * 3600:
-                remaining = cooldown_hours * 3600 - elapsed
-                hours = int(remaining // 3600)
-                minutes = int((remaining % 3600) // 60)
-                yield event.plain_result(
-                    f"⏳ {sender_name}，你还需要等待 {hours} 小时 {minutes} 分钟才能再次领取卡密。"
-                )
-                event.stop_event()
-                return
+        # 2. 检查冷却时间（白名单用户跳过）
+        user_whitelist = await self._get_user_whitelist()
+        if sender_id not in user_whitelist:
+            cooldown_hours = await self._get_cooldown_hours()
+            records = await self._get_claim_records()
+            if cooldown_hours > 0 and sender_id in records:
+                last_claim = records[sender_id]
+                last_time = last_claim.get("timestamp", 0)
+                elapsed = time.time() - last_time
+                if elapsed < cooldown_hours * 3600:
+                    remaining = cooldown_hours * 3600 - elapsed
+                    hours = int(remaining // 3600)
+                    minutes = int((remaining % 3600) // 60)
+                    yield event.plain_result(
+                        f"⏳ {sender_name}，你还需要等待 {hours} 小时 {minutes} 分钟才能再次领取卡密。"
+                    )
+                    event.stop_event()
+                    return
 
         # 3. 从卡密池取一个未使用的卡密
         kami_pool = await self._get_kami_pool()
@@ -498,13 +514,15 @@ class KamiPlugin(Star):
         """GET — 获取插件配置"""
         cooldown = await self._get_cooldown_hours()
         whitelist = await self._get_whitelist()
+        user_whitelist = await self._get_user_whitelist()
         return jsonify({
             "cooldown_hours": cooldown,
             "whitelist_groups": whitelist,
+            "whitelist_users": user_whitelist,
         })
 
     async def api_update_config(self):
-        """POST — 更新插件配置 {cooldown_hours, whitelist_groups}"""
+        """POST — 更新插件配置 {cooldown_hours, whitelist_groups, whitelist_users}"""
         try:
             body = await request.get_json(silent=True)
             if body is None:
@@ -521,6 +539,13 @@ class KamiPlugin(Star):
                 await self._save_whitelist(groups)
                 try:
                     self.config["whitelist_groups"] = groups
+                except Exception:
+                    pass
+            if "whitelist_users" in body:
+                users = [str(u).strip() for u in body["whitelist_users"] if str(u).strip()]
+                await self._save_user_whitelist(users)
+                try:
+                    self.config["whitelist_users"] = users
                 except Exception:
                     pass
             logger.info("插件配置已更新")
