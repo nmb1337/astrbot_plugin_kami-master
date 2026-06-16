@@ -176,9 +176,9 @@ class KamiPlugin(Star):
 
         # 2. 检查冷却时间（白名单用户跳过）
         user_whitelist = await self._get_user_whitelist()
+        records = await self._get_claim_records()
         if sender_id not in user_whitelist:
             cooldown_hours = await self._get_cooldown_hours()
-            records = await self._get_claim_records()
             if cooldown_hours > 0 and sender_id in records:
                 last_claim = records[sender_id]
                 last_time = last_claim.get("timestamp", 0)
