@@ -45,6 +45,12 @@ class KamiPlugin(Star):
             "清空已领取的卡密",
         )
         context.register_web_api(
+            f"/{PLUGIN_NAME}/kami_clear_all",
+            self.api_kami_clear_all,
+            ["POST"],
+            "一键删除所有卡密",
+        )
+        context.register_web_api(
             f"/{PLUGIN_NAME}/records",
             self.api_records,
             ["GET"],
@@ -449,6 +455,23 @@ class KamiPlugin(Star):
             })
         except Exception as e:
             logger.error(f"[kami_clear] 清空记录失败: {e}", exc_info=True)
+            return jsonify({"status": "error", "message": str(e)})
+
+    async def api_kami_clear_all(self):
+        """POST — 一键删除所有卡密（包括未使用的）"""
+        try:
+            logger.info("[kami_clear_all] 收到删除所有卡密请求")
+            pool = await self._get_kami_pool()
+            total = len(pool)
+            await self._save_kami_pool([])
+            await self._save_used_kamis([])
+            await self._save_claim_records({})
+            logger.info(f"[kami_clear_all] 已删除全部 {total} 张卡密")
+            return jsonify({
+                "msg": f"已删除全部 {total} 张卡密！"
+            })
+        except Exception as e:
+            logger.error(f"[kami_clear_all] 删除失败: {e}", exc_info=True)
             return jsonify({"status": "error", "message": str(e)})
 
     async def api_records(self):

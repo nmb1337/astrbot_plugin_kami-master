@@ -307,6 +307,33 @@ function clearUsedKamis() {
     });
 }
 
+function clearAllKamis() {
+    showConfirm("⚠️ 确定要删除全部卡密吗？\n\n此操作不可撤销！\n将会删除所有卡密（包括未领取的）并清空领取记录。").then(function (ok) {
+        if (!ok) return;
+
+        if (!getBridge() || typeof getBridge().apiPost !== "function") {
+            showToast("Bridge 未就绪，请刷新页面后重试", true);
+            return;
+        }
+
+        console.log("[kami] 一键删除全部");
+
+        try {
+            getBridge().apiPost("kami_clear_all", {}).then(function (result) {
+                console.log("[kami] 删除全部响应:", result);
+                showToast(result.msg || "操作成功");
+                loadKamiList();
+            }).catch(function (e) {
+                console.error("[kami] 删除全部失败:", e);
+                showToast(e.message || "操作失败", true);
+            });
+        } catch (e) {
+            console.error("[kami] 调用 apiPost 时发生同步异常:", e);
+            showToast("请求异常: " + (e.message || String(e)), true);
+        }
+    });
+}
+
 // ==================== 领取记录 ====================
 
 function loadRecords() {
@@ -466,6 +493,9 @@ function saveConfig() {
 
     var btnClear = document.getElementById("btn-clear-used");
     if (btnClear) btnClear.addEventListener("click", clearUsedKamis);
+
+    var btnClearAll = document.getElementById("btn-clear-all");
+    if (btnClearAll) btnClearAll.addEventListener("click", clearAllKamis);
 
     var btnRecords = document.getElementById("btn-refresh-records");
     if (btnRecords) btnRecords.addEventListener("click", loadRecords);
